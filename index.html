@@ -1,23 +1,88 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>アルカナ対戦拡張版</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Arcana Duel — 拡張対戦版</title>
+  <meta name="theme-color" content="#0f172a"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <h1>アルカナ対戦拡張版</h1>
-  <div id="game">
-    <div id="player1" class="player">
-      <h2>プレイヤー1</h2>
-      <div class="hand" id="hand1"></div>
+<header>
+  <h1>Arcana Duel — 拡張対戦版</h1>
+  <div class="meta">大アルカナ＋小アルカナ / 5ラウンド / オフライン対応 / 効果音あり</div>
+</header>
+
+<main class="wrap">
+  <section class="score" id="scoreBar">
+    <div class="pill">デッキ残：<b id="deckLeft">0</b></div>
+    <div class="pill">ラウンド：<b id="round">0</b>/5</div>
+    <div class="pill">あなた：<b id="you">0</b></div>
+    <div class="pill">AI：<b id="ai">0</b></div>
+    <div class="pill">コイン：<b id="coins">0</b></div>
+  </section>
+
+  <section class="row">
+    <div class="panel">
+      <div class="label">あなた</div>
+      <div class="arena">
+        <div class="card" id="youCard">
+          <div class="card-head">
+            <div class="badge" id="youBadge">（未選択）</div>
+            <div class="title" id="youCardTitle">—</div>
+          </div>
+          <div class="figure" id="youFigure"></div>
+          <div class="hint" id="youHint">「大アルカナを引く」または「小アルカナを添える」を押してください。</div>
+          <div class="btns">
+            <button id="btnDrawMajor">大アルカナを引く</button>
+            <button class="secondary" id="btnAttachMinor">小アルカナを添える</button>
+          </div>
+        </div>
+
+        <div class="card" id="aiCard">
+          <div class="card-head">
+            <div class="badge" id="aiBadge">AI</div>
+            <div class="title" id="aiCardTitle">—</div>
+          </div>
+          <div class="figure" id="aiFigure"></div>
+          <div class="hint" id="aiHint">あなたの確定後に自動で引きます。</div>
+          <div class="btns">
+            <button class="primary" id="btnReveal" disabled>勝敗判定</button>
+          </div>
+        </div>
+      </div>
     </div>
-    <div id="player2" class="player">
-      <h2>プレイヤー2</h2>
-      <div class="hand" id="hand2"></div>
+
+    <div class="panel">
+      <div class="label">ログ</div>
+      <div class="log" id="log"></div>
+      <div class="btns" style="margin-top:10px">
+        <button id="btnNext" disabled>次のラウンド</button>
+        <button class="warn" id="btnReset">リセット</button>
+        <button class="ghost" id="btnInstall" style="display:none;">ホーム画面に追加</button>
+      </div>
+      <p class="note">
+        ルール：大アルカナは通常 +5 点（<b>世界</b>のみ +15）。<br/>
+        小アルカナは今回のラウンドに加算（エース:+1 / 2–3:+1 / 4–6:+2 / 7–10:+3 / ペイジ:+2 / ナイト:+3 / クイーン:+3 / キング:+4）。<br/>
+        効果音：引く / 添付 / 判定 / 勝敗に応じて再生（ミュート可）。
+      </p>
+      <div class="btns">
+        <button class="secondary" id="btnMute">🔊 サウンド：ON</button>
+      </div>
     </div>
-  </div>
-  <button id="draw">カードを引く</button>
-  <script src="script.js"></script>
+  </section>
+</main>
+
+<script src="script.js"></script>
+<script>
+// PWA登録
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+}
+// インストールプロンプト
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredPrompt=e; const b=document.getElementById('btnInstall'); b.style.display='inline-block'; b.onclick=async()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); const {outcome}=await deferredPrompt.userChoice; deferredPrompt=null; b.style.display='none'; }; });
+</script>
 </body>
 </html>
