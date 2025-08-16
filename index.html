@@ -1,17 +1,271 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arcana Duel</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Arcana Duel — 対戦版</title>
+<style>
+  :root{
+    --bg1:#0f172a; --bg2:#0b1220;
+    --card:#0e1b2e; --accent:#3b82f6; --accent2:#22d3ee;
+    --text:#e5e7eb; --muted:#9ca3af; --good:#22c55e; --bad:#ef4444;
+  }
+  html,body{margin:0;padding:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);font-family:"Yu Gothic","Hiragino Kaku Gothic ProN",system-ui,sans-serif;}
+  header{padding:20px 16px 8px;text-align:center;}
+  h1{margin:0 0 4px;font-weight:800;letter-spacing:.5px}
+  .meta{opacity:.85;font-size:.95rem}
+  .wrap{max-width:980px;margin:0 auto;padding:12px 12px 40px}
+  .row{display:grid;gap:12px;grid-template-columns:1fr; }
+  @media(min-width:760px){ .row{grid-template-columns:1fr 1fr;} }
+  .panel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px 12px 16px}
+  .label{font-size:.8rem;color:var(--muted);margin:0 0 8px 2px}
+  .arena{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .card{
+    background:radial-gradient(120% 120% at 10% 0%,rgba(255,255,255,.06),transparent 35%) , var(--card);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:16px; padding:14px; min-height:220px;
+    display:flex;flex-direction:column;justify-content:space-between;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  .title{font-weight:700;font-size:1.05rem}
+  .hint{font-size:.85rem;color:var(--muted)}
+  .figure{height:120px;margin:8px 0;border-radius:12px;display:grid;place-items:center;
+    background:linear-gradient(145deg,rgba(59,130,246,.15),rgba(34,211,238,.12));
+    border:1px dashed rgba(255,255,255,.12);
+  }
+  .figure span{opacity:.7}
+  .btns{display:flex;gap:10px;flex-wrap:wrap}
+  button{
+    appearance:none;border:none;cursor:pointer;border-radius:10px;
+    padding:10px 14px;font-weight:700;letter-spacing:.2px;
+    color:#06101c;background:linear-gradient(180deg,#60a5fa,#3b82f6);box-shadow:0 6px 16px rgba(59,130,246,.35);
+  }
+  button.secondary{background:linear-gradient(180deg,#e2e8f0,#cbd5e1);box-shadow:none}
+  button.warn{background:linear-gradient(180deg,#fca5a5,#ef4444);color:#1d0303}
+  .score{display:flex;gap:10px;flex-wrap:wrap}
+  .pill{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+    padding:8px 10px;border-radius:999px;font-size:.9rem}
+  .good{color:var(--good)} .bad{color:var(--bad)}
+  .log{height:180px;overflow:auto;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);
+    border-radius:12px;padding:10px 12px;font-family:ui-monospace,Consolas,monospace;font-size:.9rem}
+  .note{opacity:.85;font-size:.9rem;line-height:1.6}
+</style>
 </head>
 <body>
-  <h1>🌟 Arcana Duel 🌟</h1>
-  <div id="game">
-    <button id="drawCard">カードを引く</button>
-    <div id="cardDisplay"></div>
+<header>
+  <h1>Arcana Duel — 大+小アルカナ（対戦）</h1>
+  <div class="meta">5ラウンド / あなた vs AI / デッキは78枚をシャッフルして使用</div>
+</header>
+
+<div class="wrap">
+  <div class="score" id="scoreBar">
+    <div class="pill">デッキ残：<b id="deckLeft">0</b></div>
+    <div class="pill">ラウンド：<b id="round">0</b>/5</div>
+    <div class="pill">あなた：<b id="you">0</b></div>
+    <div class="pill">AI：<b id="ai">0</b></div>
+    <div class="pill">コイン：<b id="coins">0</b></div>
   </div>
-  <script src="script.js"></script>
+
+  <div class="row" style="margin-top:12px">
+    <div class="panel">
+      <div class="label">あなたの手番</div>
+      <div class="arena">
+        <div class="card" id="youCard">
+          <div>
+            <div class="title" id="youCardTitle">（未選択）</div>
+            <div class="figure"><span>カード表面イメージ</span></div>
+            <div class="hint" id="youHint">「大アルカナを引く」または「小アルカナを添える」で選択</div>
+          </div>
+          <div class="btns">
+            <button id="btnDrawMajor">大アルカナを引く</button>
+            <button class="secondary" id="btnAttachMinor">小アルカナを添える</button>
+          </div>
+        </div>
+        <div class="card" id="aiCard">
+          <div>
+            <div class="title" id="aiCardTitle">（AI待ち）</div>
+            <div class="figure"><span>AIのカード</span></div>
+            <div class="hint" id="aiHint">あなたの確定後に自動で引きます</div>
+          </div>
+          <div class="btns">
+            <button class="secondary" id="btnReveal" disabled>勝敗判定</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="label">ログ</div>
+      <div class="log" id="log"></div>
+      <div class="btns" style="margin-top:10px">
+        <button id="btnNext" disabled>次のラウンド</button>
+        <button class="warn" id="btnReset">リセット</button>
+      </div>
+      <p class="note" style="margin-top:8px">
+        ルール：大アルカナは原則 +5 点（<b>世界</b>のみ +15）。<br/>
+        小アルカナは今回のラウンドに加算されるボーナス（下表）。コインは将来の拡張用。<br/>
+        ボーナス：エース:+1 / 2–3:+1 / 4–6:+2 / 7–10:+3 / ペイジ:+2 / ナイト:+3 / クイーン:+3 / キング:+4
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========= データ定義 ========= */
+const MAJORS = [
+  "愚者","魔術師","女教皇","女帝","皇帝","法王","恋人","戦車","力","隠者",
+  "運命の輪","正義","吊るされた男","死神","節制","悪魔","塔","星","月","太陽","審判","世界"
+];
+const SUITS = ["ワンド","カップ","ソード","ペンタクル"];
+const RANKS = ["エース","2","3","4","5","6","7","8","9","10","ペイジ","ナイト","クイーン","キング"];
+
+const minorValue = r => {
+  if (r==="エース") return 1;
+  if (["2","3"].includes(r)) return 1;
+  if (["4","5","6"].includes(r)) return 2;
+  if (["7","8","9","10"].includes(r)) return 3;
+  if (r==="ペイジ") return 2;
+  if (r==="ナイト") return 3;
+  if (r==="クイーン") return 3;
+  if (r==="キング") return 4;
+  return 0;
+};
+const majorValue = name => name==="世界" ? 15 : 5;
+
+/* ========= デッキ構築 ========= */
+function buildDeck(){
+  const majorDeck = MAJORS.map(n => ({ kind:"major", name:n, value:majorValue(n) }));
+  const minorDeck = [];
+  for (const s of SUITS){
+    for (const r of RANKS){
+      minorDeck.push({ kind:"minor", name:`${s}の${r}`, suit:s, rank:r, bonus:minorValue(r) });
+    }
+  }
+  return [...majorDeck, ...minorDeck];
+}
+function shuffle(a){
+  for (let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+/* ========= ゲーム状態 ========= */
+let deck=[], round=1, maxRound=5, youScore=0, aiScore=0, coins=0;
+let youMajor=null, youMinor=null, aiMajor=null, aiMinor=null;
+
+const el = sel => document.querySelector(sel);
+const logEl = el("#log");
+
+function log(line){
+  const p=document.createElement("div"); p.textContent="• "+line;
+  logEl.appendChild(p); logEl.scrollTop=logEl.scrollHeight;
+}
+
+function refreshBars(){
+  el("#deckLeft").textContent = deck.length;
+  el("#round").textContent = round;
+  el("#you").textContent = youScore;
+  el("#ai").textContent = aiScore;
+  el("#coins").textContent = coins;
+}
+function resetRoundView(){
+  el("#youCardTitle").textContent="（未選択）";
+  el("#youHint").textContent="「大アルカナを引く」または「小アルカナを添える」で選択";
+  el("#aiCardTitle").textContent="（AI待ち）";
+  el("#aiHint").textContent="あなたの確定後に自動で引きます";
+  el("#btnReveal").disabled=true;
+  el("#btnNext").disabled=true;
+}
+function startGame(){
+  deck = shuffle(buildDeck());
+  round=1; youScore=0; aiScore=0; coins=0;
+  youMajor=youMinor=aiMajor=aiMinor=null;
+  logEl.innerHTML=""; log("ゲーム開始。全78枚をシャッフルしました。");
+  refreshBars(); resetRoundView();
+}
+function nextRound(){
+  youMajor=youMinor=aiMajor=aiMinor=null;
+  round++; if (round>maxRound){ endGame(); return; }
+  log(`--- ラウンド ${round} ---`);
+  resetRoundView(); refreshBars();
+}
+function endGame(){
+  const result = youScore>aiScore ? "あなたの勝ち！" : youScore<aiScore ? "AIの勝ち！" : "引き分け";
+  log(`=== 結果: ${result} （あなた ${youScore} - AI ${aiScore}）===`);
+  el("#btnNext").disabled=true;
+}
+
+/* ========= アクション ========= */
+function drawFromDeck(kind){
+  const i = deck.findIndex(c => c.kind===kind);
+  if (i===-1) return null;
+  return deck.splice(i,1)[0];
+}
+function pickRandomMinor(){
+  // デッキからminorを1枚引く（ボーナス用）
+  const idx = deck.findIndex(c => c.kind==="minor");
+  if (idx===-1) return null;
+  return deck.splice(idx,1)[0];
+}
+function ensureAiMoves(){
+  if (!youMajor) return;
+  // AIは大アルカナを引く（簡易）
+  aiMajor = drawFromDeck("major");
+  if (!aiMajor){ log("AIは大アルカナを引けませんでした。"); return; }
+  el("#aiCardTitle").textContent = `${aiMajor.name}（+${aiMajor.value}）`;
+  el("#aiHint").textContent = "必要なら小アルカナを自動添付";
+  // 50%で小アルカナを添える
+  if (Math.random()<0.5){
+    aiMinor = pickRandomMinor();
+    if (aiMinor){
+      el("#aiHint").textContent = `${aiMinor.name}（+${aiMinor.bonus}）を添付`;
+    }
+  }
+  el("#btnReveal").disabled=false;
+}
+
+function reveal(){
+  const y = (youMajor?.value||0) + (youMinor?.bonus||0);
+  const a = (aiMajor?.value||0) + (aiMinor?.bonus||0);
+  const yTxt = `${youMajor?.name??"無し"} + ${youMinor?`${youMinor.name}`:"（ボーナス無し）"} = ${y}`;
+  const aTxt = `${aiMajor?.name??"無し"} + ${aiMinor?`${aiMinor.name}`:"（ボーナス無し）"} = ${a}`;
+
+  if (y>a){ youScore+=y; log(`あなたの勝ち！ ${yTxt} / AI: ${aTxt}`); }
+  else if (y<a){ aiScore+=a; log(`AIの勝ち！ ${yTxt} / AI: ${aTxt}`); }
+  else { youScore+=y; aiScore+=a; log(`引き分け： ${yTxt} / AI: ${aTxt}`); }
+  refreshBars();
+  el("#btnNext").disabled=false;
+  el("#btnReveal").disabled=true;
+}
+
+/* ========= イベント配線 ========= */
+el("#btnDrawMajor").addEventListener("click", () => {
+  if (youMajor){ log("すでに大アルカナを引いています。"); return; }
+  youMajor = drawFromDeck("major");
+  if (!youMajor){ log("デッキに大アルカナがありません。"); return; }
+  el("#youCardTitle").textContent = `${youMajor.name}（+${youMajor.value}）`;
+  el("#youHint").textContent = "必要なら小アルカナを添えてください";
+  refreshBars();
+  ensureAiMoves();
+});
+el("#btnAttachMinor").addEventListener("click", () => {
+  if (!youMajor){ log("先に大アルカナを引いてください。"); return; }
+  if (youMinor){ log("小アルカナはすでに添付済みです。"); return; }
+  youMinor = pickRandomMinor();
+  if (!youMinor){ log("デッキに小アルカナがありません。"); return; }
+  el("#youHint").textContent = `${youMinor.name}（+${youMinor.bonus}）を添付`;
+  refreshBars();
+  ensureAiMoves();
+});
+el("#btnReveal").addEventListener("click", reveal);
+el("#btnNext").addEventListener("click", nextRound);
+el("#btnReset").addEventListener("click", startGame);
+
+/* 初期化 */
+startGame();
+log("手番：まず「大アルカナを引く」を押してね。必要なら小アルカナを追加できます。");
+</script>
 </body>
 </html>
